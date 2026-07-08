@@ -83,7 +83,7 @@ details summary:hover{color:#2563eb}
 <p>Actuators are getting recognition as the critical component of robotics hardware today, and while there are great resources covering what they are and what they are made of (see <a href="https://www.humanityslastmachine.com/" target="_blank">humanityslastmachine.com</a>), something that is both difficult to learn and explain is how engineers design actuators for specific applications.</p>
 
 <figure>
-  <img src="SCR-20260707-tugp.jpeg" style="max-width:439px" alt="Actuator overview">
+  <img src="actuator-cutaway.jpeg" style="max-width:439px" alt="Actuator overview">
 </figure>
 
 <p>My hope is that you can walk away from this post with a foundational understanding of the workflow of how actuator requirements are developed and how different physical properties (length of a robot limb, stiffness of the gearbox) affect the performance characteristics that roboticists actually care about. In future posts, I aim to answer deeper questions down to "how is battery voltage controlled by a microcontroller to make a 3-phase motor spin?"</p>
@@ -97,7 +97,7 @@ details summary:hover{color:#2563eb}
 <p>Good engineering starts with developing good requirements. The primary characteristic of a motor (the core, power generating component of an actuator) is its <strong>torque-speed envelope</strong>. This plot describes all the operating points within the capability of a motor. To build an actuator for a robot, first generate the desired torque-speed envelope.</p>
 
 <figure>
-  <img src="IMG_5C1FFB68E9B8-1.jpeg" style="max-width:414px" alt="Torque-speed envelope">
+  <img src="torque-speed-envelope.jpeg" style="max-width:414px" alt="Torque-speed envelope">
 </figure>
 
 <p>Due to the lack of quality and inexpensive commodity actuator hardware, the design approach for roboticists has been design the actuator around the robot, not the robot around the actuator. Robot design is influenced by a wide variety of stakeholders and must satisfy functional and aesthetic requirements. For the sake of actuators, any robot design can be described by three questions:</p>
@@ -118,7 +118,7 @@ details summary:hover{color:#2563eb}
     <p>When you have a motor connected to a beam at the end of which is some weight, it is simple to calculate the torque required to hold that beam up against gravity: $\tau_{gravity} = mg \cdot r \cdot \cos(\theta)$</p>
 
     <figure>
-      <img src="IMG_D3004EECBD2C-1.jpeg" style="max-width:349px" alt="Gravity torque diagram">
+      <img src="gravity-torque-diagram.jpeg" style="max-width:349px" alt="Gravity torque diagram">
     </figure>
 
     <p>When considering that the arm must move, things become more complicated. Now you must include the torque contribution from accelerating the arm as it begins to move $\tau_{motion} = m \cdot r^{2} \cdot \alpha$. But what is the acceleration $\alpha$ value? To determine that, you must compute a trajectory.</p>
@@ -130,7 +130,7 @@ details summary:hover{color:#2563eb}
 <h2>Generating Torque/Speed Envelopes</h2>
 
 <figure>
-  <img src="IMG_C189306FBAC1-1.jpeg" style="max-width:697px" alt="Torque-speed envelope generation pipeline">
+  <img src="envelope-generation-pipeline.jpeg" style="max-width:697px" alt="Torque-speed envelope generation pipeline">
 </figure>
 
 <p>Modern roboticists use simulation environments (Drake, MuJoCo, Isaac Sim, Matlab) to compute joint/torque envelopes for actuators (see <a href="https://www.youtube.com/live/ODSJsviD_SU?si=gtbqTpSXT3ULtXJE" target="_blank">Tesla AI Day 2022</a> where Konstantinos talks about this process for early Optimus). They input a kinematic chain (description of arrangement of joints), physical properties of the links connecting joints, and a desired end effector profile. The simulator computes joint position trajectories (using <a href="https://www.mathworks.com/discovery/inverse-kinematics.html" target="_blank">inverse kinematics</a>) alongside torque, resulting in a plot of combinations of torque and speed operating points.</p>
@@ -166,7 +166,7 @@ details summary:hover{color:#2563eb}
         </ol>
         <p>The total time is then $T = 2 t_{1} + t_{cruise} = \frac{2\omega_{max}}{\alpha_{max}} + \frac{\theta - \omega_{max}^2/\alpha_{max}}{\omega_{max}}$</p>
         <figure>
-          <img src="JPEG image-43FC-8236-23-0.jpeg" style="max-width:502px" alt="Trapezoidal velocity profile">
+          <img src="trapezoidal-velocity-profile.jpeg" style="max-width:502px" alt="Trapezoidal velocity profile">
         </figure>
         <p>Case B is much simpler since $\omega_{max}$ is never reached. The peak angular velocity is $\omega_{peak} = \sqrt{\theta \cdot \alpha_{max}}$ and the ramp up time is computed as $t_{1} = \sqrt{\frac{\theta}{\alpha_{max}}}$. The ramp down is the exact same as ramp up making the total time $T = 2t_{1}$.</p>
       </div>
@@ -203,7 +203,7 @@ details summary:hover{color:#2563eb}
 <p>Gearboxes have a straightforward affect on the torque speed curve. They linearly multiply torque and divide speed, changing the effective slope of the curve.</p>
 
 <figure>
-  <img src="IMG_4019A0E3B5B0-1.jpeg" style="max-width:563px" alt="Gearbox effect on torque-speed curve">
+  <img src="gearbox-torque-speed.jpeg" style="max-width:563px" alt="Gearbox effect on torque-speed curve">
 </figure>
 
 <p>While it seems like this could solve all actuator torque problems, there is unfortunately no such thing as a free lunch. Gears and the components required to support them increase mass (and thus rotational inertia) and produce two significant negative effects for actuators:</p>
@@ -228,7 +228,7 @@ details summary:hover{color:#2563eb}
 <p>Losses can also live in the direct load path of the actuator or be to the side. This is the differentiation between a "<strong>series</strong>" and "<strong>parallel</strong>" path, similar to circuits or springs. Let's take a look at a basic diagram of an actuator to understand this.</p>
 
 <figure>
-  <img src="SCR-20260707-odzs.png" style="max-width:500px" alt="Actuator loss diagram with series and parallel paths">
+  <img src="actuator-loss-diagram.png" style="max-width:500px" alt="Actuator loss diagram with series and parallel paths">
 </figure>
 
 <p>The basic model has three components: a fast spinning motor (called the high speed drive), a geartrain, and the output (low speed side). The gears live directly in the path between the input (motor) and the output, meaning loss here is in series (see #2). The motor and output are supported by bearings and have other mechanical components that create friction, but are not in the transmission path from input to output. Thus, these are in parallel (#1 and #3).</p>
@@ -240,7 +240,7 @@ details summary:hover{color:#2563eb}
 </ul>
 
 <figure>
-  <img src="torqueSpeedLosses.png" style="max-width:591px" alt="Torque-speed envelope with losses applied">
+  <img src="torque-speed-losses.png" style="max-width:591px" alt="Torque-speed envelope with losses applied">
 </figure>
 
 <p>Visually, you can see that constant drag torques cause a vertical shift in the torque-speed profile while load-dependent losses create a slope change. This is a critical step in actuator engineering prior to committing to a design as the available envelope can at times shrink by more than half depending on which components are selected for transmitting power.</p>
@@ -252,7 +252,7 @@ details summary:hover{color:#2563eb}
 <p>Every physical system has a <em>stiffness</em> and an <em>inertia</em>. These create a natural frequency, which is sometimes known as a resonant frequency. Take a musical tuning fork for example. Why is it that when you strike it, no matter against what object, it makes the same pitch sound? Striking the fork is an excitement — energy into the system. Based on the geometry and material of the fork, it has a characteristic natural frequency which corresponds to a sound of specific pitch. Vary the dimensions → vary the stiffness/inertia → vary the pitch.</p>
 
 <figure>
-  <img src="tuningForks.jpg" alt="Tuning forks">
+  <img src="tuning-forks.jpg" alt="Tuning forks">
 </figure>
 
 <details open>
