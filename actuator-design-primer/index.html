@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Actuator Design Primer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Nunito+Sans:ital,opsz,wght@0,6..12,300;0,6..12,400;0,6..12,500;0,6..12,600;0,6..12,700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"
+  onload="renderMathInElement(document.body,{delimiters:[{left:'$$',right:'$$',display:true},{left:'$',right:'$',display:false}],throwOnError:false});"></script>
+<style>
+body{margin:0;padding:36px 16px 48px;background:#fff;font-family:'proxima-nova','Nunito Sans',sans-serif;color:#1e2a3a;-webkit-font-smoothing:antialiased}
+*{margin:0;padding:0;box-sizing:border-box}
+.page{max-width:720px;margin:0 auto}
+h1{font-size:28px;font-weight:700;letter-spacing:.3px;margin-bottom:8px;line-height:1.3}
+h2{font-size:22px;font-weight:700;margin-top:32px;margin-bottom:12px;letter-spacing:.2px}
+h3{font-size:18px;font-weight:700;margin-top:32px;margin-bottom:12px}
+p{font-size:16px;line-height:1.65;margin-bottom:12px;color:#2a3a4e}
+a{color:#2563eb;text-decoration:none}
+a:hover{text-decoration:underline}
+hr{border:none;border-top:1px solid #e0e4ea;margin:20px 0}
+figure{margin:20px 0;text-align:center}
+figure img{max-width:100%;border-radius:3px}
+figcaption,.caption{text-align:center;font-size:13px;color:#8d99a8;font-style:italic;margin-top:10px;line-height:1.5}
+ul,ol{margin:8px 0 12px 24px;font-size:16px;line-height:1.65;color:#2a3a4e}
+li{margin-bottom:6px}
+li ul,li ol{margin-top:4px;margin-bottom:4px}
+.note{font-size:14px;color:#6b7a8d;font-style:italic;margin:16px 0;line-height:1.7}
+.author{font-size:14px;color:#6b7a8d;margin-bottom:4px}
+
+details{margin:24px 0}
+details summary{padding:6px 0;font-size:15px;font-weight:600;color:#2a3a4e;cursor:pointer;list-style:none;display:flex;align-items:center;gap:8px}
+details summary::-webkit-details-marker{display:none}
+details summary::before{content:'▶';font-size:9px;color:#2563eb;transition:transform .2s}
+details[open]>summary::before{transform:rotate(90deg)}
+details summary:hover{color:#2563eb}
+.details-body{padding:12px 0 4px 16px;border-left:2px solid #e0e4ea;margin-left:4px;margin-top:4px}
+.details-body h6{font-size:14px;font-weight:700;margin-top:24px;margin-bottom:8px;color:#3a4a5c;letter-spacing:.3px}
+.details-body h6:first-child{margin-top:0}
+.details-body p{font-size:15px;line-height:1.75}
+.details-body ol,.details-body ul{font-size:15px;line-height:1.75}
+.details-body figure img{max-width:100%}
+
+.details-body details.nested{margin:12px 0;border-left:none}
+.details-body details.nested summary{padding:4px 0;font-size:14px;list-style:none;display:flex;align-items:center;gap:8px;cursor:pointer}
+.details-body details.nested summary::-webkit-details-marker{display:none}
+.details-body details.nested summary::before{content:'▶';font-size:9px;color:#2563eb;transition:transform .2s}
+.details-body details.nested[open]>summary::before{transform:rotate(90deg)}
+.details-body details.nested summary:hover{color:#2563eb}
+.details-body details.nested .details-body{padding:8px 0 4px 16px;margin-left:4px;margin-top:2px}
+
+.math-block{margin:8px 0;padding:8px 0;overflow-x:auto;text-align:center}
+.phase-list li{margin-bottom:4px}
+
+.embed-wrap{margin:32px -40px;position:relative}
+.embed-wrap iframe{width:100%;border:1px solid #d5dae2;display:block;border-radius:6px;background:#fff}
+
+.callout{border-left:3px solid #2563eb;padding:14px 20px;margin:20px 0;font-size:14.5px;line-height:1.7;color:#2a3a4e}
+.callout p{font-size:14.5px;margin-bottom:10px}
+.callout p:last-child{margin-bottom:0}
+
+.social-links{margin-top:16px;font-size:15px;line-height:1.8}
+.social-links a{margin-right:16px}
+
+@media(max-width:640px){
+  body{padding:28px 12px 48px}
+  .embed-wrap{margin-left:-12px;margin-right:-12px}
+  h1{font-size:23px}
+  h2{font-size:19px}
+}
+</style>
+</head>
+<body>
+<article class="page">
+
+<h1>Actuator Design Primer</h1>
+<p class="author">Sajiv Shah // 06-08-2026</p>
+<hr>
+
+<p>Actuators are getting recognition as the critical component of robotics hardware today, and while there are great resources covering what they are and what they are made of (see <a href="https://www.humanityslastmachine.com/" target="_blank">humanityslastmachine.com</a>), something that is both difficult to learn and explain is how engineers design actuators for specific applications.</p>
+
+<figure>
+  <img src="SCR-20260707-tugp.jpeg" style="max-width:439px" alt="Actuator overview">
+</figure>
+
+<p>My hope is that you can walk away from this post with a foundational understanding of the workflow of how actuator requirements are developed and how different physical properties (length of a robot limb, stiffness of the gearbox) affect the performance characteristics that roboticists actually care about. In future posts, I aim to answer deeper questions down to "how is battery voltage controlled by a microcontroller to make a 3-phase motor spin?"</p>
+
+<hr>
+
+<p class="note">Note: There are tons of different types of actuators. This post most centrally covers the BLDC electric motor actuators you would find in modern robot arms and humanoids, but most concepts can be abstracted to other types. I won't cover some of the more obvious metrics like backlash and will instead focus on ones that are more technically nuanced</p>
+
+<h2>Where do you start?</h2>
+
+<p>Good engineering starts with developing good requirements. The primary characteristic of a motor (the core, power generating component of an actuator) is its <strong>torque-speed envelope</strong>. This plot describes all the operating points within the capability of a motor. To build an actuator for a robot, first generate the desired torque-speed envelope.</p>
+
+<figure>
+  <img src="IMG_5C1FFB68E9B8-1.jpeg" style="max-width:414px" alt="Torque-speed envelope">
+</figure>
+
+<p>Due to the lack of quality and inexpensive commodity actuator hardware, the design approach for roboticists has been design the actuator around the robot, not the robot around the actuator. Robot design is influenced by a wide variety of stakeholders and must satisfy functional and aesthetic requirements. For the sake of actuators, any robot design can be described by three questions:</p>
+
+<ol>
+  <li>How many joints are there and how are they spatially arranged?</li>
+  <li>How much torque must each joint generate?</li>
+  <li>What <em>trajectory</em> (speed, acceleration) must the joint follow?</li>
+</ol>
+
+<p>The first question is answered by determining what tasks the robot must complete, with extra room for designer taste as input. The latter two questions require engineering approaches to answer.</p>
+
+<details open>
+  <summary>Note on Trajectories</summary>
+  <div class="details-body">
+    <p>A common mistake I see many robotics enthusiasts make when exploring their first robot arm project and trying to figure out how much torque each joint needs is only considering statics and ignoring dynamics. Here's what that means:</p>
+
+    <p>When you have a motor connected to a beam at the end of which is some weight, it is simple to calculate the torque required to hold that beam up against gravity: $\tau_{gravity} = mg \cdot r \cdot \cos(\theta)$</p>
+
+    <figure>
+      <img src="IMG_D3004EECBD2C-1.jpeg" style="max-width:349px" alt="Gravity torque diagram">
+    </figure>
+
+    <p>When considering that the arm must move, things become more complicated. Now you must include the torque contribution from accelerating the arm as it begins to move $\tau_{motion} = m \cdot r^{2} \cdot \alpha$. But what is the acceleration $\alpha$ value? To determine that, you must compute a trajectory.</p>
+
+    <p>Trajectory generation is a whole world of its own but for now know this: every joint has a limit for maximum acceleration and velocity that is the result of actuator or structural constraints. From these, the trajectory that takes the minimum amount of time to travel from point A to point B can be computed. This is referred to as a trapezoidal trajectory. In a later post I plan to break this down further.</p>
+  </div>
+</details>
+
+<h2>Generating Torque/Speed Envelopes</h2>
+
+<figure>
+  <img src="IMG_C189306FBAC1-1.jpeg" style="max-width:697px" alt="Torque-speed envelope generation pipeline">
+</figure>
+
+<p>Modern roboticists use simulation environments (Drake, MuJoCo, Isaac Sim, Matlab) to compute joint/torque envelopes for actuators (see <a href="https://www.youtube.com/live/ODSJsviD_SU?si=gtbqTpSXT3ULtXJE" target="_blank">Tesla AI Day 2022</a> where Konstantinos talks about this process for early Optimus). They input a kinematic chain (description of arrangement of joints), physical properties of the links connecting joints, and a desired end effector profile. The simulator computes joint position trajectories (using <a href="https://www.mathworks.com/discovery/inverse-kinematics.html" target="_blank">inverse kinematics</a>) alongside torque, resulting in a plot of combinations of torque and speed operating points.</p>
+
+<p>The setup and onboarding for these simulation packages is non-trivial, so to help you visualize what it does I built a simple playground in which you can vary configurations and simulate a 1DOF robot traveling 180 degrees.</p>
+
+<div class="embed-wrap">
+  <iframe id="armEmbed" src="arm-torque-speed.html" style="height:540px" loading="lazy"></iframe>
+</div>
+<p class="caption">Use 'save config' to keep a profile in the background and overlay new ones over it</p>
+
+<details open>
+  <summary>How does this work in the background? Here's all the math</summary>
+  <div class="details-body">
+
+    <details class="nested" open>
+      <summary>Computing Trajectory</summary>
+      <div class="details-body">
+        <p>The simulator first computes the trapezoidal velocity trajectory. The known constraints are:</p>
+        <ol>
+          <li>Total travel distance $\theta = \pi$</li>
+          <li>Maximum radial velocity $\omega_{max}$</li>
+          <li>Maximum radial acceleration $\alpha_{max}$</li>
+        </ol>
+        <p>The <strong>minimum time</strong> trajectory will be the one that operates at the constraints, or as close to them as possible to travel a certain distance. The solver will first check if it can reach the maximum velocity given the acceleration constraint:</p>
+        <div class="math-block">$$\theta_{accel} = \frac{\omega_{max}^2}{\alpha_{max}}$$</div>
+        <div class="math-block">$$\theta \overset{?}{\geq} \theta_{accel} \begin{cases} \text{Yes, Case A} \\ \text{No, Case B} \end{cases}$$</div>
+        <p>In Case A the trajectory is split into three phases:</p>
+        <ol class="phase-list">
+          <li><strong>Accelerate</strong> — <span class="math-inline">$t_{1} = \frac{\omega_{max}}{\alpha_{max}}$</span>, <span class="math-inline">$\theta_{1} = \frac{\omega_{max}^2}{2\alpha_{max}}$</span></li>
+          <li><strong>Cruise</strong> — <span class="math-inline">$\theta_{2} = \theta - 2\theta_{1}$</span>, <span class="math-inline">$t_{cruise} = \frac{\theta_{2}}{\omega_{max}}$</span>, <span class="math-inline">$t_{2} = t_{1} + t_{cruise}$</span></li>
+          <li><strong>Decelerate</strong> — <span class="math-inline">$t_{3} = t_{1} + t_{2}$</span></li>
+        </ol>
+        <p>The total time is then $T = 2 t_{1} + t_{cruise} = \frac{2\omega_{max}}{\alpha_{max}} + \frac{\theta - \omega_{max}^2/\alpha_{max}}{\omega_{max}}$</p>
+        <figure>
+          <img src="JPEG image-43FC-8236-23-0.jpeg" style="max-width:502px" alt="Trapezoidal velocity profile">
+        </figure>
+        <p>Case B is much simpler since $\omega_{max}$ is never reached. The peak angular velocity is $\omega_{peak} = \sqrt{\theta \cdot \alpha_{max}}$ and the ramp up time is computed as $t_{1} = \sqrt{\frac{\theta}{\alpha_{max}}}$. The ramp down is the exact same as ramp up making the total time $T = 2t_{1}$.</p>
+      </div>
+    </details>
+
+    <details class="nested" open>
+      <summary>Computing Inertia</summary>
+      <div class="details-body">
+        <p>To compute torque, the next component required is inertia. The two contributing members to rotational inertia are the payload and that of the link. If we assume the link is a rod with evenly distributed mass and a linear density of $\rho = 5 \text{ kg/m}$, from a lookup table we can compute the inertia to be $I_{rod} = \frac{ML^2}{3} = \frac{\rho L^3}{3}$. The payload is simply a point mass, thus the total inertia is:</p>
+        <div class="math-block">$$I_{total} = I_{payload} + I_{rod} = ML^2 + \frac{\rho L^3}{3}$$</div>
+      </div>
+    </details>
+
+    <details class="nested" open>
+      <summary>Computing Torque</summary>
+      <div class="details-body">
+        <p>With the trajectory and inertia, we now have all the components needed to compute the actuator torque during the trajectory. The three components contributing to torque are gravity on the link, gravity on the payload, and inertial torque from accelerating the system.</p>
+        <div class="math-block">$$\tau = \tau_{linkGravity} + \tau_{payloadGravity} + \tau_{inertial}$$</div>
+        <div class="math-block">$$\tau(t) = \left(\frac{\rho L^2}{2} + ML\right) \cdot g \cos(\theta(t)) + \left(ML^2 + \frac{\rho L^3}{3}\right) \cdot \alpha(t)$$</div>
+      </div>
+    </details>
+
+  </div>
+</details>
+
+<hr>
+
+<h2>Gears</h2>
+
+<p>With a defined torque-speed profile for a joint, the next step is just to find a motor that fits what we desire on top of other system requirements. Simple, right? Nope.</p>
+
+<p>Electric motors are generally designed to spin fast at low torque due to their geometric scaling laws and thermal generation. Finding an off the shelf motor that can reasonably fit your joint profile is near impossible, which makes way for another well-known component of actuators: gearboxes.</p>
+
+<p>Gearboxes have a straightforward affect on the torque speed curve. They linearly multiply torque and divide speed, changing the effective slope of the curve.</p>
+
+<figure>
+  <img src="IMG_4019A0E3B5B0-1.jpeg" style="max-width:563px" alt="Gearbox effect on torque-speed curve">
+</figure>
+
+<p>While it seems like this could solve all actuator torque problems, there is unfortunately no such thing as a free lunch. Gears and the components required to support them increase mass (and thus rotational inertia) and produce two significant negative effects for actuators:</p>
+
+<ol>
+  <li>Friction/Efficiency losses</li>
+  <li>Reduced bandwidth</li>
+</ol>
+
+<h3>Friction+Efficiency Losses</h3>
+
+<p>"Losses" are anything that reduce the effective torque-speed envelope. There are three primary loss mechanisms:</p>
+
+<ol>
+  <li><strong>Load dependent.</strong> The amount of loss depends on the amount of torque applied. For example, friction in the mesh between gears</li>
+  <li><strong>Velocity dependent.</strong> Loss via dynamic friction torque depends on operating speed</li>
+  <li><strong>Constant/drag.</strong> A loss in torque regardless of operating point</li>
+</ol>
+
+<p>In reality, most physical components produce losses as a function of all. Take a cross roller bearing, for example, which is found in most actuators. Based on the lubricant and nominal internal clearance, it may have a constant loss at low speeds but then see an increase at higher speeds. Axial, radial, or moment loads may produce additional frictional losses. For the sake of design however, it is best to reduce it to a linear model and fit to one of the three.</p>
+
+<p>Losses can also live in the direct load path of the actuator or be to the side. This is the differentiation between a "<strong>series</strong>" and "<strong>parallel</strong>" path, similar to circuits or springs. Let's take a look at a basic diagram of an actuator to understand this.</p>
+
+<figure>
+  <img src="SCR-20260707-odzs.png" style="max-width:500px" alt="Actuator loss diagram with series and parallel paths">
+</figure>
+
+<p>The basic model has three components: a fast spinning motor (called the high speed drive), a geartrain, and the output (low speed side). The gears live directly in the path between the input (motor) and the output, meaning loss here is in series (see #2). The motor and output are supported by bearings and have other mechanical components that create friction, but are not in the transmission path from input to output. Thus, these are in parallel (#1 and #3).</p>
+
+<p>Let's look at how each of these three losses impact the torque-speed envelope under these assumptions:</p>
+<ul>
+  <li>Losses #1 and #3 are constant drag torques</li>
+  <li>Loss #2 is a load-dependent torque loss (described as gear efficiency)</li>
+</ul>
+
+<figure>
+  <img src="torqueSpeedLosses.png" style="max-width:591px" alt="Torque-speed envelope with losses applied">
+</figure>
+
+<p>Visually, you can see that constant drag torques cause a vertical shift in the torque-speed profile while load-dependent losses create a slope change. This is a critical step in actuator engineering prior to committing to a design as the available envelope can at times shrink by more than half depending on which components are selected for transmitting power.</p>
+
+<h3>Reduced Bandwidth</h3>
+
+<p>An often overlooked, super important characteristic of actuators is their control bandwidth. Bandwidth is the frequency range over which a system can actually respond to its input. I remember I had no idea what that meant when I first learned of the concept, so here it is broken down:</p>
+
+<p>Every physical system has a <em>stiffness</em> and an <em>inertia</em>. These create a natural frequency, which is sometimes known as a resonant frequency. Take a musical tuning fork for example. Why is it that when you strike it, no matter against what object, it makes the same pitch sound? Striking the fork is an excitement — energy into the system. Based on the geometry and material of the fork, it has a characteristic natural frequency which corresponds to a sound of specific pitch. Vary the dimensions → vary the stiffness/inertia → vary the pitch.</p>
+
+<figure>
+  <img src="tuningForks.jpg" alt="Tuning forks">
+</figure>
+
+<details open>
+  <summary>Reflected Inertia</summary>
+  <div class="details-body">
+    <p>The 1DOF robot simulator provided a way to calculate inertia for the output link and payload, but one component it missed is the inertia of the actuator itself that connects to the link. Inside the actuator is a high speed spinning motor, which largely contributes to the system.</p>
+
+    <p>Since the motor lives past the gear stage relative to the output, its rotational speed is multiplied by the gearbox ratio. In modern humanoids, this can range anywhere from 10:1 to 100:1. Let's look at basic energy equations to arrive at the scaling law for what the increased inertia contribution is.</p>
+
+    <p>The kinetic energy of a rotating system from simple mechanics is $KE = \frac{1}{2}J\omega^2$, where $J$ is the rotational inertia and $\omega$ is the angular velocity. When we apply a gear ratio $N$ to $\omega$, this becomes $KE = \frac{1}{2}J(\omega \cdot N)^2 = \frac{1}{2}JN^2\omega^2$. The effective inertia (or <em>reflected</em> inertia) of the motor is:</p>
+
+    <div class="math-block">$$J_{motor,\ reflected} = J_{motor}N^2$$</div>
+
+    <p>So although the rotor of the motor is much smaller and less massive than the link and payload, in an actuator with a 50:1 or 80:1 gear ratio (common for humanoids), the inertia is multiplied by three orders of magnitude and can significantly increase the inertia of the system.</p>
+  </div>
+</details>
+
+<hr>
+
+<p>In an actuator, the gearbox tends to be the least stiff part of the system, and the rotor and link+payload are the largest contributors to inertia. Assuming second order system dynamics, the natural frequency can be simply calculated as $\omega_{n} = \sqrt{\frac{K}{J}}$. This is best visualized with a bode plot which shows the gain dropoff and phase delay in frequency domain. See how those work in this playground:</p>
+
+<p class="caption" style="margin-bottom:4px">Sweep across drive frequency to see how system response changes</p>
+
+<div class="embed-wrap">
+  <iframe id="springEmbed" src="spring-natural-freq.html" style="height:620px" loading="lazy"></iframe>
+</div>
+
+<p>Frequency domain analysis of actuators and controllers can become complex and is something we will explore more later. For now, know that reflected inertia scales with gear ratio², and that a higher inertia dramatically reduces the ability to track a signal accurately.</p>
+
+<h2>Future Topics</h2>
+
+<p>This post just scratches the surface of actuator design. There are tons of optimization frameworks and solutions to strange problems in topics like motor control that significantly impact actuator performance, and I plan to learn more and break some of them down in future topics to make actuator engineering less of a mystery.</p>
+
+<ol>
+  <li>Inertia matching for optimal gear ratios</li>
+  <li>How motors are controlled (FOC)</li>
+  <li>Torque transparency (why torque sensors are sometimes required)</li>
+  <li>How do simulators work to compute joint torques and speeds for various kinematic chains with known mass and payload properties</li>
+  <li>What motor design parameters determine the torque-speed capability</li>
+  <li>Motor efficiency map and favorable operating conditions</li>
+</ol>
+
+<p class="social-links">
+  X: <a href="https://x.com/sajiv_shah" target="_blank">@sajiv_shah</a>
+  <a href="https://www.linkedin.com/in/sajiv-shah/" target="_blank">LinkedIn</a>
+</p>
+
+</article>
+<script>
+window.addEventListener('message',function(e){
+  if(e.data&&e.data.type==='embed-height'){
+    var iframes=document.querySelectorAll('iframe');
+    for(var i=0;i<iframes.length;i++){
+      if(iframes[i].contentWindow===e.source){
+        iframes[i].style.height=e.data.height+'px';
+        break;
+      }
+    }
+  }
+});
+</script>
+</body>
+</html>
