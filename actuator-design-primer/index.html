@@ -233,17 +233,13 @@ details summary:hover{color:#2563eb}
 
 <p>The basic model has three components: a fast spinning motor (called the high speed drive), a geartrain, and the output (low speed side). The gears live directly in the path between the input (motor) and the output, meaning loss here is in series (see #2). The motor and output are supported by bearings and have other mechanical components that create friction, but are not in the transmission path from input to output. Thus, these are in parallel (#1 and #3).</p>
 
-<p>Let's look at how each of these three losses impact the torque-speed envelope under these assumptions:</p>
-<ul>
-  <li>Losses #1 and #3 are constant drag torques</li>
-  <li>Loss #2 is a load-dependent torque loss (described as gear efficiency)</li>
-</ul>
+<p>Let's look at how each of these three losses impact the torque-speed envelope. Step through below to see how each loss stage reduces the usable envelope:</p>
 
-<figure>
-  <img src="torque-speed-losses.png" style="max-width:591px" alt="Torque-speed envelope with losses applied">
-</figure>
+<div class="embed-wrap">
+  <iframe id="lossEmbed" src="torque-speed-losses.html" style="height:620px" loading="lazy"></iframe>
+</div>
 
-<p>Visually, you can see that constant drag torques cause a vertical shift in the torque-speed profile while load-dependent losses create a slope change. This is a critical step in actuator engineering prior to committing to a design as the available envelope can at times shrink by more than half depending on which components are selected for transmitting power.</p>
+<p>Constant drag torques cause a vertical shift in the torque-speed profile while load-dependent losses create a slope change. Notice how motor-side drag, though small in motor space, gets amplified ×N through the gear ratio. This is a critical step in actuator engineering prior to committing to a design as the available envelope can at times shrink by more than half depending on which components are selected for transmitting power.</p>
 
 <h3>Reduced Bandwidth</h3>
 
@@ -282,9 +278,9 @@ details summary:hover{color:#2563eb}
 
 <p>Frequency domain analysis of actuators and controllers can become complex and is something we will explore more later. For now, know that reflected inertia scales with gear ratio², and that a higher inertia dramatically reduces the ability to track a signal accurately.</p>
 
-<h2>Future Topics</h2>
+<h2>More Topics</h2>
 
-<p>This post just scratches the surface of actuator design. There are tons of optimization frameworks and solutions to strange problems in topics like motor control that significantly impact actuator performance, and I plan to learn more and break some of them down in future topics to make actuator engineering less of a mystery.</p>
+<p>This post just scratches the surface of actuator design. There are tons of optimization frameworks and solutions to strange problems in topics like motor control that significantly impact actuator performance. Some future topics:</p>
 
 <ol>
   <li>Inertia matching for optimal gear ratios</li>

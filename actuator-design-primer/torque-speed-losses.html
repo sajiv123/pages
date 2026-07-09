@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Torque-Speed Losses</title>
+<link href="https://fonts.googleapis.com/css2?family=Nunito+Sans:opsz,wght@6..12,400;6..12,600;6..12,700&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'proxima-nova','Nunito Sans',sans-serif;background:#f5f7fa;display:flex;justify-content:center;padding:32px 16px;-webkit-font-smoothing:antialiased}
+body.embedded{background:transparent;padding:0}
+#root{background:#f5f7fa;border-radius:14px;box-shadow:0 2px 16px rgba(30,42,58,.10);max-width:780px;width:100%;padding:28px 24px 22px}
+body.embedded #root{box-shadow:none;border-radius:0;max-width:100%}
+.title{text-align:center;text-transform:uppercase;font-size:11.5px;font-weight:700;letter-spacing:1.8px;color:#2563eb;margin-bottom:16px}
+.step-row{display:flex;align-items:center;justify-content:center;gap:5px;margin-bottom:10px;flex-wrap:wrap}
+.pill{border:1.5px solid #d5dae2;background:#fff;color:#8d99a8;border-radius:14px;padding:4px 10px;font-size:11px;font-weight:600;cursor:pointer;transition:all .2s;font-family:inherit;line-height:1.3}
+.pill:hover{border-color:#aab4c2}
+.pill.active{background:var(--c);color:#fff;border-color:var(--c)}
+.pill.past{border-color:var(--c);color:var(--c);background:rgba(255,255,255,.85)}
+.arr{color:#d5dae2;font-size:12px;user-select:none}
+.desc{text-align:center;font-size:13px;color:#5a6a7e;line-height:1.55;margin-bottom:14px;min-height:20px;padding:0 8px}
+.plots{display:flex;gap:10px;margin-bottom:4px}
+.plot-col{flex:1;min-width:0}
+.plot-label{text-align:center;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#8d99a8;margin-bottom:4px}
+.plot-col.dim .plot-label{opacity:.4}
+canvas{width:100%;height:280px;display:block;background:#fff;border-radius:8px;border:1px solid #e8eaef}
+.plot-col.dim canvas{opacity:.5}
+.stats{display:flex;justify-content:center;gap:24px;margin:10px 0 8px;flex-wrap:wrap}
+.stat{text-align:center}
+.stat .l{font-size:10px;text-transform:uppercase;letter-spacing:.7px;color:#8d99a8;font-weight:600;margin-bottom:1px}
+.stat .v{font-size:14px;font-weight:700}
+.sliders{display:grid;grid-template-columns:1fr 1fr;gap:8px 20px}
+.sc{display:flex;align-items:center;gap:6px;padding:3px 0;border-left:3px solid transparent;padding-left:5px;border-radius:4px;transition:border-color .2s}
+.sc.hl{border-left-color:var(--hc)}
+.sc label{font-size:11px;font-weight:600;color:#6b7a8d;text-transform:uppercase;letter-spacing:.4px;white-space:nowrap;min-width:72px;text-align:right;transition:color .2s}
+.sc.hl label{color:#1e2a3a}
+.sc input[type=range]{flex:1;-webkit-appearance:none;height:4px;border-radius:2px;background:#d5dae2;outline:none}
+.sc input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:16px;height:16px;border-radius:50%;background:#2563eb;cursor:pointer;border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.15)}
+.sc .val{font-size:12px;font-weight:700;color:#1e2a3a;min-width:44px}
+@media(max-width:600px){
+  #root{padding:18px 12px 16px}
+  .plots{flex-direction:column;gap:8px}
+  canvas{height:220px}
+  .sliders{grid-template-columns:1fr}
+  .pill{font-size:10px;padding:3px 7px}
+  .stats{gap:14px}
+  .sc label{min-width:64px;font-size:10px}
+}
+</style>
+</head>
+<body>
+<div id="root">
+  <div class="title">Actuator Torque-Speed Losses</div>
+  <div class="step-row" id="stepRow"></div>
+  <p class="desc" id="desc"></p>
+  <div class="plots">
+    <div class="plot-col" id="mCol">
+      <div class="plot-label">Motor Space</div>
+      <canvas id="mPlot"></canvas>
+    </div>
+    <div class="plot-col" id="oCol">
+      <div class="plot-label">Output Space</div>
+      <canvas id="oPlot"></canvas>
+    </div>
+  </div>
+  <div class="stats" id="stats"></div>
+  <div class="sliders">
+    <div class="sc" data-step="1" style="--hc:#34d399"><label>Motor Drag</label><input type="range" id="sTd1" min="0" max="0.5" value="0.15" step="0.01"><span class="val" id="vTd1">0.15 Nm</span></div>
+    <div class="sc" data-step="2" style="--hc:#f59e0b"><label>Gear Ratio</label><input type="range" id="sN" min="2" max="80" value="10" step="1"><span class="val" id="vN">10</span></div>
+    <div class="sc" data-step="3" style="--hc:#e05a2b"><label>Efficiency</label><input type="range" id="sEta" min="0.5" max="1" value="0.85" step="0.01"><span class="val" id="vEta">85%</span></div>
+    <div class="sc" data-step="4" style="--hc:#2563eb"><label>Output Drag</label><input type="range" id="sTd3" min="0" max="5" value="1.0" step="0.1"><span class="val" id="vTd3">1.0 Nm</span></div>
+  </div>
+</div>
+<script>
+var TS=2,WNL=400;
+var STEPS=[
+  {pill:'Motor',color:'#a78bfa',
+   desc:'The base motor curve — torque falls linearly from stall (2 Nm) to no-load speed (400 rad/s)'},
+  {pill:'Loss ①',color:'#34d399',
+   desc:'Motor-side drag shifts the motor curve down — this loss gets amplified ×N through gears'},
+  {pill:'Gears',color:'#f59e0b',
+   desc:'Gear ratio maps motor to output space — dashed line shows ideal without motor drag'},
+  {pill:'Loss ②',color:'#e05a2b',
+   desc:'Gear efficiency η reduces transmitted torque — the curve pivots around no-load speed'},
+  {pill:'Loss ③',color:'#2563eb',
+   desc:'Output-side drag subtracts constant torque — the final usable envelope'}
+];
+var step=0;
+
+// Build pills
+var row=document.getElementById('stepRow');
+STEPS.forEach(function(s,i){
+  if(i>0){var a=document.createElement('span');a.className='arr';a.textContent='›';row.appendChild(a)}
+  var b=document.createElement('button');
+  b.className='pill'+(i===0?' active':'');
+  b.style.setProperty('--c',s.color);
+  b.textContent=s.pill;
+  b.dataset.i=i;
+  b.onclick=function(){setStep(+this.dataset.i)};
+  row.appendChild(b);
+});
+
+function setStep(s){
+  step=Math.max(0,Math.min(STEPS.length-1,s));
+  var pills=row.querySelectorAll('.pill');
+  for(var i=0;i<pills.length;i++)pills[i].className='pill'+(i===step?' active':(i<step?' past':''));
+  document.getElementById('desc').textContent=STEPS[step].desc;
+  var scs=document.querySelectorAll('.sc[data-step]');
+  for(var j=0;j<scs.length;j++)scs[j].classList.toggle('hl',+scs[j].dataset.step===step);
+  document.getElementById('mCol').classList.toggle('dim',step>=2);
+  document.getElementById('oCol').classList.toggle('dim',step<2);
+  draw();
+}
+
+function getP(){
+  return{
+    N:+document.getElementById('sN').value,
+    eta:+document.getElementById('sEta').value,
+    td1:+document.getElementById('sTd1').value,
+    td3:+document.getElementById('sTd3').value
+  };
+}
+
+function getCurves(p){
+  var N=p.N,eta=p.eta,td1=p.td1,td3=p.td3;
+  var c=[];
+  c.push({stall:TS,nl:WNL});
+  var s1=Math.max(0,TS-td1),n1=s1>0?WNL*(1-td1/TS):0;
+  c.push({stall:s1,nl:n1});
+  c.push({stall:s1*N,nl:n1>0?n1/N:0});
+  c.push({stall:s1*N*eta,nl:n1>0?n1/N:0});
+  var s4=s1*N*eta-td3;
+  var n4=s4>0?(WNL/N)*(1-(td1+td3/(N*eta))/TS):0;
+  c.push({stall:Math.max(0,s4),nl:Math.max(0,n4)});
+  return c;
+}
+
+function niceStep(range,n){
+  var r=range/n;if(r<=0)return 1;
+  var m=Math.pow(10,Math.floor(Math.log10(r)));
+  var d=r/m;
+  return(d<=1.5?1:d<=3?2:d<=7?5:10)*m;
+}
+
+function renderPlot(canvasId,curveDefs,maxT,maxW){
+  var canvas=document.getElementById(canvasId);
+  var dpr=window.devicePixelRatio||1;
+  var rect=canvas.getBoundingClientRect();
+  canvas.width=rect.width*dpr;canvas.height=rect.height*dpr;
+  var ctx=canvas.getContext('2d');ctx.scale(dpr,dpr);
+  var W=rect.width,H=rect.height;
+  var ml=46,mr=8,mt=10,mb=32;
+  var pw=W-ml-mr,ph=H-mt-mb;
+  if(maxT<0.1)maxT=1;if(maxW<1)maxW=10;
+
+  function tx(w){return ml+(w/maxW)*pw}
+  function ty(t){return mt+ph-(t/maxT)*ph}
+
+  ctx.clearRect(0,0,W,H);
+
+  // Grid
+  var tsT=niceStep(maxT,4),tsW=niceStep(maxW,4);
+  ctx.strokeStyle='#eef0f4';ctx.lineWidth=.5;
+  for(var t=tsT;t<maxT;t+=tsT){ctx.beginPath();ctx.moveTo(ml,ty(t));ctx.lineTo(ml+pw,ty(t));ctx.stroke()}
+  for(var w=tsW;w<maxW;w+=tsW){ctx.beginPath();ctx.moveTo(tx(w),mt);ctx.lineTo(tx(w),mt+ph);ctx.stroke()}
+
+  // Axes
+  ctx.strokeStyle='#c5cad2';ctx.lineWidth=1;
+  ctx.beginPath();ctx.moveTo(ml,mt);ctx.lineTo(ml,mt+ph);ctx.lineTo(ml+pw,mt+ph);ctx.stroke();
+
+  // Ticks
+  ctx.fillStyle='#8d99a8';ctx.font='600 9px "Nunito Sans",sans-serif';
+  ctx.textAlign='right';ctx.textBaseline='middle';
+  for(t=tsT;t<maxT;t+=tsT)ctx.fillText(t<1?t.toFixed(2):(t<10?t.toFixed(1):t.toFixed(0)),ml-4,ty(t));
+  ctx.textAlign='center';ctx.textBaseline='top';
+  for(w=tsW;w<maxW;w+=tsW)ctx.fillText(w.toFixed(0),tx(w),mt+ph+3);
+
+  // Axis labels
+  ctx.fillStyle='#8d99a8';ctx.font='600 9px "Nunito Sans",sans-serif';
+  ctx.textAlign='center';
+  ctx.fillText('Speed (rad/s)',ml+pw/2,mt+ph+19);
+  ctx.save();ctx.translate(12,mt+ph/2);ctx.rotate(-Math.PI/2);
+  ctx.fillText('Torque (Nm)',0,0);ctx.restore();
+
+  // Clip
+  ctx.save();ctx.beginPath();ctx.rect(ml,mt,pw,ph);ctx.clip();
+
+  // Curves
+  for(var i=0;i<curveDefs.length;i++){
+    var c=curveDefs[i];
+    if(c.stall<=0||c.nl<=0)continue;
+    var act=c.active&&!c.dashed;
+
+    if(act){
+      ctx.globalAlpha=0.07;ctx.fillStyle=c.color;
+      ctx.beginPath();ctx.moveTo(tx(0),ty(c.stall));ctx.lineTo(tx(c.nl),ty(0));
+      ctx.lineTo(tx(0),ty(0));ctx.closePath();ctx.fill();
+    }
+
+    ctx.globalAlpha=c.active?1:(c.dashed?0.45:0.3);
+    ctx.strokeStyle=c.color;ctx.lineWidth=act?2.5:(c.dashed?1.5:1.5);
+    if(c.dashed)ctx.setLineDash([6,4]);
+    ctx.beginPath();ctx.moveTo(tx(0),ty(c.stall));ctx.lineTo(tx(c.nl),ty(0));ctx.stroke();
+    if(c.dashed)ctx.setLineDash([]);
+
+    if(act){
+      ctx.fillStyle=c.color;ctx.globalAlpha=1;
+      ctx.beginPath();ctx.arc(tx(0),ty(c.stall),3,0,Math.PI*2);ctx.fill();
+      ctx.beginPath();ctx.arc(tx(c.nl),ty(0),3,0,Math.PI*2);ctx.fill();
+    }
+    ctx.globalAlpha=1;
+  }
+  ctx.restore();
+
+  // Legend
+  var vis=curveDefs.filter(function(c){return c.label&&(c.stall>0||c.dashed)});
+  if(vis.length>0){
+    var lx=ml+pw-4,ly=mt+8,lh=vis.length*14+6;
+    ctx.fillStyle='rgba(255,255,255,0.9)';ctx.fillRect(lx-112,ly-4,118,lh);
+    ctx.strokeStyle='#eef0f4';ctx.lineWidth=.5;ctx.strokeRect(lx-112,ly-4,118,lh);
+    ctx.font='600 9px "Nunito Sans",sans-serif';
+    for(var j=0;j<vis.length;j++){
+      var vc=vis[j],yy=ly+j*14;
+      ctx.globalAlpha=vc.active?1:0.5;
+      ctx.strokeStyle=vc.color;ctx.lineWidth=2;
+      if(vc.dashed)ctx.setLineDash([4,3]);
+      ctx.beginPath();ctx.moveTo(lx-106,yy);ctx.lineTo(lx-94,yy);ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.fillStyle='#4a5568';ctx.textAlign='left';
+      ctx.fillText(vc.label,lx-90,yy+3);
+      ctx.globalAlpha=1;
+    }
+  }
+
+  return{tx:tx,ty:ty,ctx:ctx,ml:ml,mt:mt,pw:pw,ph:ph};
+}
+
+function draw(){
+  var p=getP();
+  var cc=getCurves(p);
+
+  // Motor plot
+  var mc=[];
+  if(step>=0)mc.push({stall:cc[0].stall,nl:cc[0].nl,color:STEPS[0].color,label:'Motor',active:step===0});
+  if(step>=1)mc.push({stall:cc[1].stall,nl:cc[1].nl,color:STEPS[1].color,label:'After drag',active:step===1});
+  renderPlot('mPlot',mc,TS*1.18,WNL*1.08);
+
+  // Output plot
+  var oc=[];
+  var oMaxT=TS*p.N*1.15,oMaxW=(WNL/p.N)*1.2;
+  if(step>=2){
+    oc.push({stall:TS*p.N,nl:WNL/p.N,color:'#b0b8c4',label:'Ideal (no drag)',active:false,dashed:true});
+    oc.push({stall:cc[2].stall,nl:cc[2].nl,color:STEPS[2].color,label:'After gears',active:step===2});
+  }
+  if(step>=3)oc.push({stall:cc[3].stall,nl:cc[3].nl,color:STEPS[3].color,label:'After efficiency',active:step===3});
+  if(step>=4)oc.push({stall:cc[4].stall,nl:cc[4].nl,color:STEPS[4].color,label:'Final output',active:step===4});
+
+  var oRes=renderPlot('oPlot',oc,oMaxT,oMaxW);
+
+  // Annotate drag amplification gap on output plot
+  if(step>=2&&p.td1>0){
+    var ctx=oRes.ctx,ty=oRes.ty,txf=oRes.tx;
+    var idealS=TS*p.N,actualS=cc[2].stall;
+    var y1=ty(idealS),y2=ty(actualS);
+    if(Math.abs(y2-y1)>8){
+      var bx=oRes.ml+10;
+      ctx.globalAlpha=step===2?0.7:0.35;
+      ctx.strokeStyle=step===2?'#3a4a5c':'#b0b8c4';
+      ctx.lineWidth=1;
+      ctx.beginPath();
+      ctx.moveTo(bx+4,y1);ctx.lineTo(bx,y1);ctx.lineTo(bx,y2);ctx.lineTo(bx+4,y2);
+      ctx.stroke();
+      // Arrow
+      ctx.beginPath();ctx.moveTo(bx-2,y2-4);ctx.lineTo(bx,y2);ctx.lineTo(bx+2,y2-4);ctx.stroke();
+      // Label
+      ctx.fillStyle=step===2?'#3a4a5c':'#8d99a8';
+      ctx.font='600 8px "Nunito Sans",sans-serif';
+      ctx.textAlign='left';ctx.textBaseline='middle';
+      var gapNm=(p.td1*p.N).toFixed(1);
+      ctx.fillText('drag×N = '+gapNm,bx+8,(y1+y2)/2);
+      ctx.globalAlpha=1;
+    }
+  }
+
+  // Stats
+  var ac=cc[step];
+  var pp=ac.stall>0&&ac.nl>0?ac.stall*ac.nl/4:0;
+  var sc=STEPS[step].color;
+  var prefix=step<=1?'Motor ':'Output ';
+  var el=document.getElementById('stats');
+  if(ac.stall<=0){
+    el.innerHTML='<div class="stat"><div class="v" style="color:#e05a2b">Drag exceeds available torque</div></div>';
+  }else{
+    el.innerHTML=
+      '<div class="stat"><div class="l">'+prefix+'Stall</div><div class="v" style="color:'+sc+'">'+ac.stall.toFixed(1)+' Nm</div></div>'+
+      '<div class="stat"><div class="l">'+prefix+'No-load</div><div class="v" style="color:'+sc+'">'+ac.nl.toFixed(1)+' rad/s</div></div>'+
+      '<div class="stat"><div class="l">Peak Power</div><div class="v" style="color:'+sc+'">'+pp.toFixed(1)+' W</div></div>';
+  }
+}
+
+// Slider handlers
+[
+  {id:'sTd1',vid:'vTd1',fmt:function(v){return v.toFixed(2)+' Nm'}},
+  {id:'sN',vid:'vN',fmt:function(v){return v.toFixed(0)}},
+  {id:'sEta',vid:'vEta',fmt:function(v){return(v*100).toFixed(0)+'%'}},
+  {id:'sTd3',vid:'vTd3',fmt:function(v){return v.toFixed(1)+' Nm'}}
+].forEach(function(s){
+  document.getElementById(s.id).addEventListener('input',function(){
+    document.getElementById(s.vid).textContent=s.fmt(+this.value);
+    draw();
+  });
+});
+
+document.addEventListener('keydown',function(e){
+  if(e.key==='ArrowLeft'){e.preventDefault();setStep(step-1)}
+  else if(e.key==='ArrowRight'){e.preventDefault();setStep(step+1)}
+});
+
+var rt;window.addEventListener('resize',function(){clearTimeout(rt);rt=setTimeout(draw,50)});
+
+if(window.self!==window.top){
+  document.body.classList.add('embedded');
+  new ResizeObserver(function(){
+    window.parent.postMessage({type:'embed-height',height:document.getElementById('root').offsetHeight},'*');
+  }).observe(document.getElementById('root'));
+}
+
+setStep(0);
+</script>
+</body>
+</html>
