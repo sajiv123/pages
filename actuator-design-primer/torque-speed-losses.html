@@ -10,7 +10,7 @@
 body{font-family:'proxima-nova','Nunito Sans',sans-serif;background:#f5f7fa;display:flex;justify-content:center;padding:32px 16px;-webkit-font-smoothing:antialiased}
 body.embedded{background:transparent;padding:0}
 #root{background:#f5f7fa;border-radius:14px;box-shadow:0 2px 16px rgba(30,42,58,.10);max-width:780px;width:100%;padding:28px 24px 22px}
-body.embedded #root{box-shadow:none;border-radius:0;max-width:100%}
+body.embedded #root{box-shadow:none;border-radius:0;max-width:100%;background:#fff}
 .title{text-align:center;text-transform:uppercase;font-size:11.5px;font-weight:700;letter-spacing:1.8px;color:#2563eb;margin-bottom:16px}
 .step-row{display:flex;align-items:center;justify-content:center;gap:5px;margin-bottom:10px;flex-wrap:wrap}
 .pill{border:1.5px solid #d5dae2;background:#fff;color:#8d99a8;border-radius:14px;padding:4px 10px;font-size:11px;font-weight:600;cursor:pointer;transition:all .2s;font-family:inherit;line-height:1.3}
@@ -21,6 +21,9 @@ body.embedded #root{box-shadow:none;border-radius:0;max-width:100%}
 .desc{text-align:center;font-size:13px;color:#5a6a7e;line-height:1.55;margin-bottom:14px;min-height:20px;padding:0 8px}
 .plots{display:flex;gap:10px;margin-bottom:4px}
 .plot-col{flex:1;min-width:0}
+.pbar-col{width:54px;flex-shrink:0;display:flex;flex-direction:column;align-items:center}
+.pbar-col .plot-label{font-size:9px;letter-spacing:.5px}
+.pbar-col canvas{width:54px;height:280px;display:block;background:#fff;border-radius:8px;border:1px solid #e8eaef}
 .plot-label{text-align:center;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#8d99a8;margin-bottom:4px}
 .plot-col.dim .plot-label{opacity:.4}
 canvas{width:100%;height:280px;display:block;background:#fff;border-radius:8px;border:1px solid #e8eaef}
@@ -40,6 +43,8 @@ canvas{width:100%;height:280px;display:block;background:#fff;border-radius:8px;b
 @media(max-width:600px){
   #root{padding:18px 12px 16px}
   .plots{flex-direction:column;gap:8px}
+  .pbar-col{width:100%;flex-direction:row;gap:6px}
+  .pbar-col canvas{width:100%;height:40px}
   canvas{height:220px}
   .sliders{grid-template-columns:1fr}
   .pill{font-size:10px;padding:3px 7px}
@@ -62,13 +67,17 @@ canvas{width:100%;height:280px;display:block;background:#fff;border-radius:8px;b
       <div class="plot-label">Output Space</div>
       <canvas id="oPlot"></canvas>
     </div>
+    <div class="pbar-col">
+      <div class="plot-label">Power</div>
+      <canvas id="pBar"></canvas>
+    </div>
   </div>
   <div class="stats" id="stats"></div>
   <div class="sliders">
-    <div class="sc" data-step="1" style="--hc:#34d399"><label>Motor Drag</label><input type="range" id="sTd1" min="0" max="0.5" value="0.15" step="0.01"><span class="val" id="vTd1">0.15 Nm</span></div>
-    <div class="sc" data-step="2" style="--hc:#f59e0b"><label>Gear Ratio</label><input type="range" id="sN" min="2" max="80" value="10" step="1"><span class="val" id="vN">10</span></div>
-    <div class="sc" data-step="3" style="--hc:#e05a2b"><label>Efficiency</label><input type="range" id="sEta" min="0.5" max="1" value="0.85" step="0.01"><span class="val" id="vEta">85%</span></div>
-    <div class="sc" data-step="4" style="--hc:#2563eb"><label>Output Drag</label><input type="range" id="sTd3" min="0" max="5" value="1.0" step="0.1"><span class="val" id="vTd3">1.0 Nm</span></div>
+    <div class="sc" data-step="1" style="--hc:#34d399"><label>Motor Drag</label><input type="range" id="sTd1" min="0" max="0.25" value="0.15" step="0.01"><span class="val" id="vTd1">0.15 Nm</span></div>
+    <div class="sc" data-step="2" style="--hc:#f59e0b"><label>Gear Ratio</label><input type="range" id="sN" min="6" max="100" value="10" step="1"><span class="val" id="vN">10</span></div>
+    <div class="sc" data-step="3" style="--hc:#e05a2b"><label>Efficiency</label><input type="range" id="sEta" min="0.4" max="1" value="0.85" step="0.01"><span class="val" id="vEta">85%</span></div>
+    <div class="sc" data-step="4" style="--hc:#2563eb"><label>Output Drag</label><input type="range" id="sTd3" min="0" max="10" value="1.0" step="0.1"><span class="val" id="vTd3">1.0 Nm</span></div>
   </div>
 </div>
 <script>
@@ -235,6 +244,92 @@ function renderPlot(canvasId,curveDefs,maxT,maxW){
   return{tx:tx,ty:ty,ctx:ctx,ml:ml,mt:mt,pw:pw,ph:ph};
 }
 
+function renderPowerBar(cc){
+  var canvas=document.getElementById('pBar');
+  var dpr=window.devicePixelRatio||1;
+  var rect=canvas.getBoundingClientRect();
+  canvas.width=rect.width*dpr;canvas.height=rect.height*dpr;
+  var ctx=canvas.getContext('2d');ctx.scale(dpr,dpr);
+  var W=rect.width,H=rect.height;
+  var mt=10,mb=6,ml=2,mr=2;
+  var bw=W-ml-mr,bh=H-mt-mb;
+
+  ctx.clearRect(0,0,W,H);
+
+  var powers=[];
+  for(var i=0;i<cc.length;i++){
+    var s=cc[i].stall,n=cc[i].nl;
+    powers.push(s>0&&n>0?s*n/4:0);
+  }
+  var p0=powers[0];
+  if(p0<=0)return;
+
+  var segs=[
+    {color:STEPS[1].color,loss:powers[0]-powers[1],tag:'①'},
+    {color:STEPS[2].color,loss:powers[1]-powers[2],tag:'G'},
+    {color:STEPS[3].color,loss:powers[2]-powers[3],tag:'②'},
+    {color:STEPS[4].color,loss:powers[3]-powers[4],tag:'③'}
+  ];
+
+  var y=mt;
+  function barH(p){return(p/p0)*bh}
+
+  // Draw all loss segments from top down
+  ctx.textAlign='center';
+  for(var j=0;j<segs.length;j++){
+    var seg=segs[j];
+    var sh=barH(seg.loss);
+    if(sh<0.5)continue;
+    ctx.globalAlpha=0.55;
+    ctx.fillStyle=seg.color;
+    ctx.fillRect(ml,y,bw,sh);
+    ctx.globalAlpha=1;
+    ctx.fillStyle='#1e2a3a';
+    if(sh>22){
+      ctx.font='700 8px "Nunito Sans",sans-serif';
+      ctx.textBaseline='bottom';
+      ctx.fillText(seg.tag,ml+bw/2,y+sh/2+1);
+      ctx.font='600 7px "Nunito Sans",sans-serif';
+      ctx.textBaseline='top';
+      ctx.fillText(seg.loss.toFixed(0)+'W',ml+bw/2,y+sh/2+1);
+    }else if(sh>10){
+      ctx.font='600 7px "Nunito Sans",sans-serif';
+      ctx.textBaseline='middle';
+      ctx.fillText(seg.tag+' '+seg.loss.toFixed(0)+'W',ml+bw/2,y+sh/2);
+    }
+    y+=sh;
+  }
+
+  // Available power at bottom
+  var rem=powers[4];
+  var remH=barH(rem);
+  if(remH>0){
+    ctx.globalAlpha=0.15;
+    ctx.fillStyle='#1e2a3a';
+    ctx.fillRect(ml,mt+bh-remH,bw,remH);
+    ctx.globalAlpha=1;
+    ctx.fillStyle='#1e2a3a';
+    if(remH>22){
+      ctx.font='700 8px "Nunito Sans",sans-serif';
+      ctx.textBaseline='bottom';
+      ctx.fillText('Avail.',ml+bw/2,mt+bh-remH/2+1);
+      ctx.font='600 7px "Nunito Sans",sans-serif';
+      ctx.textBaseline='top';
+      ctx.fillText(rem.toFixed(0)+'W',ml+bw/2,mt+bh-remH/2+1);
+    }else if(remH>10){
+      ctx.font='600 7px "Nunito Sans",sans-serif';
+      ctx.textBaseline='middle';
+      ctx.fillText(rem.toFixed(0)+'W',ml+bw/2,mt+bh-remH/2);
+    }
+  }
+
+  // Top label (motor peak power)
+  ctx.fillStyle='#8d99a8';
+  ctx.font='600 8px "Nunito Sans",sans-serif';
+  ctx.textAlign='center';ctx.textBaseline='bottom';
+  ctx.fillText(p0.toFixed(0)+'W',ml+bw/2,mt-1);
+}
+
 function draw(){
   var p=getP();
   var cc=getCurves(p);
@@ -281,6 +376,9 @@ function draw(){
       ctx.globalAlpha=1;
     }
   }
+
+  // Power bar
+  renderPowerBar(cc);
 
   // Stats
   var ac=cc[step];
