@@ -141,7 +141,7 @@ details summary:hover{color:#2563eb}
 
 <div class="math-block">$$EMF = \frac{d \Phi}{dt}$$</div>
 
-<p>As the magnets on the rotor of a motor pass by the stator coils, they produce a changing flux. $EMF$ is a measure of voltage, and its polarity is opposite the one we are using to produce current in the coils (which in turn produce torque). $V_{motor} = V_{supply} - V_{EMF}$. Changing flux is directly proportional to the motor speed $\omega$, thus $V_{EMF} = K_{B} \cdot \omega$ where $K_{B}$ is some constant.</p>
+<p>As the magnets on the rotor of a motor pass by the stator coils, they produce a changing flux. $EMF$ is a measure of voltage, and its polarity is opposite to the one producing current in the coils. This means the productive voltage is reduced by the EMF: $V_{motor} = V_{supply} - V_{EMF}$. Changing flux is directly proportional to the motor speed $\omega$, thus $V_{EMF} = K_{B} \cdot \omega$ where $K_{B}$ is some constant.</p>
 
 <p>Moving and substituting terms, we get the <em>steady state</em> DC motor equation:</p>
 
@@ -241,8 +241,8 @@ details summary:hover{color:#2563eb}
     <details class="nested" open>
       <summary>Computing Inertia</summary>
       <div class="details-body">
-        <p>To compute torque, the next component required is inertia. The two contributing members to rotational inertia are the payload and that of the link. If we assume the link is a rod with evenly distributed mass and a linear density of $\rho = 5 \text{ kg/m}$, from a lookup table we can compute the inertia to be $I_{rod} = \frac{ML^2}{3} = \frac{\rho L^3}{3}$. The payload is simply a point mass, thus the total inertia is:</p>
-        <div class="math-block">$$I_{total} = I_{payload} + I_{rod} = ML^2 + \frac{\rho L^3}{3}$$</div>
+        <p>To compute torque, the next component required is inertia. The two contributing members to rotational inertia are the payload and that of the link. If we assume the link is a rod with evenly distributed mass and a linear density of $\rho = 5 \text{ kg/m}$, from a lookup table we can compute the inertia to be $J_{rod} = \frac{ML^2}{3} = \frac{\rho L^3}{3}$. The payload is simply a point mass, thus the total inertia is:</p>
+        <div class="math-block">$$J_{total} = J_{payload} + J_{rod} = ML^2 + \frac{\rho L^3}{3}$$</div>
       </div>
     </details>
 
@@ -264,7 +264,7 @@ details summary:hover{color:#2563eb}
 
 <p>With a defined torque-speed profile for a joint, the next step is just to find a motor that fits what we desire on top of other system requirements. Simple, right? Nope.</p>
 
-<p>Electric motors are generally designed to spin fast at low torque due to their geometric scaling laws and thermal generation. Finding an off-the-shelf motor that can reasonably fit your joint profile is near impossible, which makes way for another well-known component of actuators: gearboxes.</p>
+<p>Electric motors are generally designed to spin fast at low torque due to their geometric scaling laws and thermal generation. Finding an off-the-shelf motor that can reasonably fit your joint profile is near impossible, which makes way for another well-known component of actuators: gears.</p>
 
 <p>Gearboxes have a straightforward effect on the torque-speed curve. They linearly multiply torque and divide speed, changing the effective slope of the curve.</p>
 
