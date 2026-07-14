@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Magnet-Coil Forces</title>
+<link href="https://fonts.googleapis.com/css2?family=Nunito+Sans:opsz,wght@6..12,400;6..12,600;6..12,700&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'proxima-nova','Nunito Sans',sans-serif;background:#fff;display:flex;justify-content:center;padding:32px 16px;-webkit-font-smoothing:antialiased}
+body.embedded{background:transparent;padding:0}
+#root{background:#fff;border-radius:14px;box-shadow:0 2px 16px rgba(30,42,58,.10);max-width:780px;width:100%;padding:28px 24px 22px}
+body.embedded #root{box-shadow:none;border-radius:0;max-width:100%}
+.title{text-align:center;text-transform:uppercase;font-size:11.5px;font-weight:700;letter-spacing:1.8px;color:#2563eb;margin-bottom:6px}
+.desc{text-align:center;font-size:13px;color:#5a6a7e;line-height:1.55;margin-bottom:14px;padding:0 8px}
+.panels{display:flex;gap:12px;margin-bottom:0}
+.panel{flex:1;min-width:0}
+canvas{width:100%;display:block;background:#fff;border-radius:8px;border:1px solid #e8eaef}
+#diagram{height:300px}
+#plot{height:300px}
+.panel-sliders{margin-top:8px}
+.sc{display:flex;align-items:center;gap:6px;padding:3px 0;border-left:3px solid transparent;padding-left:5px;border-radius:4px}
+.sc label{font-size:11px;font-weight:600;color:#6b7a8d;text-transform:uppercase;letter-spacing:.4px;white-space:nowrap;min-width:72px;text-align:right}
+.sc input[type=range]{flex:1;-webkit-appearance:none;height:4px;border-radius:2px;background:#d5dae2;outline:none}
+.sc input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:16px;height:16px;border-radius:50%;background:#2563eb;cursor:pointer;border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.15)}
+.sc .val{font-size:12px;font-weight:700;color:#1e2a3a;min-width:44px}
+.readout{display:flex;justify-content:center;gap:24px;margin:6px 0 0;flex-wrap:wrap}
+.readout .stat{text-align:center}
+.readout .l{font-size:10px;text-transform:uppercase;letter-spacing:.7px;color:#8d99a8;font-weight:600;margin-bottom:1px}
+.readout .v{font-size:14px;font-weight:700;color:#2563eb}
+@media(max-width:600px){
+  #root{padding:18px 12px 16px}
+  .panels{flex-direction:column}
+  #diagram,#plot{height:250px}
+  .sc label{min-width:64px;font-size:10px}
+}
+</style>
+</head>
+<body>
+<div id="root">
+  <div class="title">Magnet–Coil Force Interaction</div>
+  <p class="desc">Slide the permanent magnet horizontally past the energized coil to see how force components change with position</p>
+  <div class="panels">
+    <div class="panel">
+      <canvas id="diagram"></canvas>
+      <div class="panel-sliders">
+        <div class="sc"><label>Position</label><input type="range" id="sPos" min="-3" max="3" value="0" step="0.05"><span class="val" id="vPos">0.00</span></div>
+      </div>
+    </div>
+    <div class="panel">
+      <canvas id="plot"></canvas>
+      <div class="panel-sliders">
+        <div class="sc"><label>Voltage</label><input type="range" id="sV" min="0" max="24" value="12" step="0.5"><span class="val" id="vV">12 V</span></div>
+        <div class="sc"><label>Resistance</label><input type="range" id="sR" min="1" max="20" value="5" step="0.5"><span class="val" id="vR">5 Ω</span></div>
+      </div>
+      <div class="readout">
+        <div class="stat"><div class="l">Current</div><div class="v" id="vI">2.4 A</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+<script>
+function fxCalc(x,I){var r2=x*x+1;return 3*x*(x*x-4)/Math.pow(r2,3.5)*I}
+function fyCalc(x,I){var r2=x*x+1;return -3*(3*x*x-2)/Math.pow(r2,3.5)*I}
+
+function getP(){
+  var V=+document.getElementById('sV').value;
+  var R=+document.getElementById('sR').value;
+  return{pos:+document.getElementById('sPos').value,V:V,R:R,I:V/R};
+}
+
+function drawArrow(ctx,x1,y1,x2,y2,color,lw){
+  var dx=x2-x1,dy=y2-y1,len=Math.sqrt(dx*dx+dy*dy);
+  if(len<2)return;
+  var ux=dx/len,uy=dy/len,hl=Math.min(8,len*.3);
+  ctx.strokeStyle=color;ctx.lineWidth=lw;
+  ctx.beginPath();ctx.moveTo(x1,y1);ctx.lineTo(x2,y2);ctx.stroke();
+  ctx.fillStyle=color;ctx.beginPath();
+  ctx.moveTo(x2,y2);
+  ctx.lineTo(x2-ux*hl-uy*hl*.4,y2-uy*hl+ux*hl*.4);
+  ctx.lineTo(x2-ux*hl+uy*hl*.4,y2-uy*hl-ux*hl*.4);
+  ctx.closePath();ctx.fill();
+}
+
+function drawDiagram(p){
+  var canvas=document.getElementById('diagram');
+  var dpr=window.devicePixelRatio||1;
+  var rect=canvas.getBoundingClientRect();
+  canvas.width=rect.width*dpr;canvas.height=rect.height*dpr;
+  var ctx=canvas.getContext('2d');ctx.scale(dpr,dpr);
+  var W=rect.width,H=rect.height;
+  ctx.clearRect(0,0,W,H);
+
+  var cx=W/2,coreTop=28,coreBot=H*.48,coreW=14;
+  var coilR=28,nTurns=7;
+  var turnH=(coreBot-coreTop-8)/nTurns;
+  var turnTop=coreTop+4;
+
+  // Back coil arcs (behind core)
+  ctx.strokeStyle='#d97706';ctx.lineWidth=2.5;ctx.globalAlpha=.25;
+  for(var i=0;i<nTurns;i++){
+    var ty=turnTop+i*turnH+turnH/2;
+    ctx.beginPath();ctx.ellipse(cx,ty,coilR,turnH*.38,0,Math.PI,0);ctx.stroke();
+  }
+  ctx.globalAlpha=1;
+
+  // Iron core
+  ctx.fillStyle='#9ca3af';
+  var cr=4;
+  ctx.beginPath();
+  ctx.moveTo(cx-coreW/2+cr,coreTop);
+  ctx.lineTo(cx+coreW/2-cr,coreTop);
+  ctx.quadraticCurveTo(cx+coreW/2,coreTop,cx+coreW/2,coreTop+cr);
+  ctx.lineTo(cx+coreW/2,coreBot-cr);
+  ctx.quadraticCurveTo(cx+coreW/2,coreBot,cx+coreW/2-cr,coreBot);
+  ctx.lineTo(cx-coreW/2+cr,coreBot);
+  ctx.quadraticCurveTo(cx-coreW/2,coreBot,cx-coreW/2,coreBot-cr);
+  ctx.lineTo(cx-coreW/2,coreTop+cr);
+  ctx.quadraticCurveTo(cx-coreW/2,coreTop,cx-coreW/2+cr,coreTop);
+  ctx.fill();
+
+  // Front coil arcs
+  ctx.strokeStyle='#d97706';ctx.lineWidth=2.5;
+  for(var i=0;i<nTurns;i++){
+    var ty=turnTop+i*turnH+turnH/2;
+    ctx.beginPath();ctx.ellipse(cx,ty,coilR,turnH*.38,0,0,Math.PI);ctx.stroke();
+  }
+
+  // Current direction arrow on coil (right side, curving around)
+  if(p.I>0.01){
+    var arrY=turnTop+turnH*1.5;
+    var arrX=cx+coilR;
+    ctx.strokeStyle='#d97706';ctx.lineWidth=1.5;
+    ctx.beginPath();
+    ctx.moveTo(arrX,arrY-6);
+    ctx.lineTo(arrX,arrY+6);
+    ctx.stroke();
+    // arrowhead pointing down
+    ctx.fillStyle='#d97706';
+    ctx.beginPath();
+    ctx.moveTo(arrX,arrY+8);
+    ctx.lineTo(arrX-3,arrY+4);
+    ctx.lineTo(arrX+3,arrY+4);
+    ctx.closePath();ctx.fill();
+    // "I" label
+    ctx.font='600 9px "Nunito Sans",sans-serif';
+    ctx.textAlign='left';ctx.textBaseline='middle';
+    ctx.fillText('I',arrX+5,arrY);
+  }
+
+  // N/S on coil
+  ctx.font='700 11px "Nunito Sans",sans-serif';ctx.textAlign='center';ctx.textBaseline='bottom';
+  ctx.fillStyle='#ef4444';ctx.fillText('N',cx,coreTop-4);
+  ctx.textBaseline='top';
+  ctx.fillStyle='#3b82f6';ctx.fillText('S',cx,coreBot+4);
+
+  // Permanent magnet
+  var magY=H*.68,magW=24,magH=46;
+  var xRange=(W-100)/2;
+  var magX=cx+(p.pos/3)*xRange;
+
+  // Magnet body - N top (red), S bottom (blue)
+  ctx.fillStyle='#ef4444';
+  ctx.beginPath();
+  ctx.moveTo(magX-magW/2+3,magY-magH/2);
+  ctx.lineTo(magX+magW/2-3,magY-magH/2);
+  ctx.quadraticCurveTo(magX+magW/2,magY-magH/2,magX+magW/2,magY-magH/2+3);
+  ctx.lineTo(magX+magW/2,magY);
+  ctx.lineTo(magX-magW/2,magY);
+  ctx.lineTo(magX-magW/2,magY-magH/2+3);
+  ctx.quadraticCurveTo(magX-magW/2,magY-magH/2,magX-magW/2+3,magY-magH/2);
+  ctx.fill();
+
+  ctx.fillStyle='#3b82f6';
+  ctx.beginPath();
+  ctx.moveTo(magX-magW/2,magY);
+  ctx.lineTo(magX+magW/2,magY);
+  ctx.lineTo(magX+magW/2,magY+magH/2-3);
+  ctx.quadraticCurveTo(magX+magW/2,magY+magH/2,magX+magW/2-3,magY+magH/2);
+  ctx.lineTo(magX-magW/2+3,magY+magH/2);
+  ctx.quadraticCurveTo(magX-magW/2,magY+magH/2,magX-magW/2,magY+magH/2-3);
+  ctx.fill();
+
+  ctx.strokeStyle='#c5cad2';ctx.lineWidth=1;
+  ctx.strokeRect(magX-magW/2,magY-magH/2,magW,magH);
+
+  ctx.font='700 9px "Nunito Sans",sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';
+  ctx.fillStyle='#fff';
+  ctx.fillText('N',magX,magY-magH/4);
+  ctx.fillText('S',magX,magY+magH/4);
+
+  // Center reference dashed line
+  ctx.strokeStyle='#d5dae2';ctx.lineWidth=.5;ctx.setLineDash([3,3]);
+  ctx.beginPath();ctx.moveTo(cx,coreBot+20);ctx.lineTo(cx,H-12);ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Force arrows — originate from bottom of magnet to avoid covering N label
+  var fx=fxCalc(p.pos,p.I),fy=fyCalc(p.pos,p.I);
+  var pxPerF=8;
+  var fxPx=fx*pxPerF,fyPx=fy*pxPerF;
+  var cap=60;
+  if(Math.abs(fxPx)>cap)fxPx=Math.sign(fxPx)*cap;
+  if(Math.abs(fyPx)>cap)fyPx=Math.sign(fyPx)*cap;
+
+  var ax=magX,ay=magY-magH/2-4;
+
+  // Fy arrow (vertical)
+  if(Math.abs(fyPx)>2){
+    drawArrow(ctx,ax,ay,ax,ay-fyPx,'#34d399',2.5);
+    ctx.fillStyle='#34d399';ctx.font='600 9px "Nunito Sans",sans-serif';
+    ctx.textAlign='left';ctx.textBaseline=fyPx>0?'bottom':'top';
+    ctx.fillText('Fy',ax+5,ay-fyPx+(fyPx>0?-2:2));
+  }
+
+  // Fx arrow (horizontal)
+  if(Math.abs(fxPx)>2){
+    drawArrow(ctx,ax,ay,ax+fxPx,ay,'#2563eb',2.5);
+    ctx.fillStyle='#2563eb';ctx.font='600 9px "Nunito Sans",sans-serif';
+    ctx.textAlign=fxPx>0?'left':'right';ctx.textBaseline='bottom';
+    ctx.fillText('Fx',ax+fxPx+(fxPx>0?4:-4),ay-4);
+  }
+
+  // Position label at bottom
+  ctx.fillStyle='#8d99a8';ctx.font='600 9px "Nunito Sans",sans-serif';
+  ctx.textAlign='center';ctx.textBaseline='bottom';
+  ctx.fillText('x = '+p.pos.toFixed(1),magX,H-4);
+}
+
+function niceStep(range,n){
+  var r=range/n;if(r<=0)return 1;
+  var m=Math.pow(10,Math.floor(Math.log10(r)));
+  var d=r/m;
+  return(d<=1.5?1:d<=3?2:d<=7?5:10)*m;
+}
+
+function drawPlot(p){
+  var canvas=document.getElementById('plot');
+  var dpr=window.devicePixelRatio||1;
+  var rect=canvas.getBoundingClientRect();
+  canvas.width=rect.width*dpr;canvas.height=rect.height*dpr;
+  var ctx=canvas.getContext('2d');ctx.scale(dpr,dpr);
+  var W=rect.width,H=rect.height;
+  ctx.clearRect(0,0,W,H);
+
+  var ml=42,mr=10,mt=10,mb=32;
+  var pw=W-ml-mr,ph=H-mt-mb;
+
+  var maxF=0.5;
+  for(var i=0;i<=60;i++){
+    var x=-3+i*0.1;
+    maxF=Math.max(maxF,Math.abs(fxCalc(x,p.I)),Math.abs(fyCalc(x,p.I)));
+  }
+  maxF*=1.15;
+
+  function tx(x){return ml+((x+3)/6)*pw}
+  function ty(f){return mt+ph/2-(f/maxF)*(ph/2)}
+
+  ctx.strokeStyle='#eef0f4';ctx.lineWidth=.5;
+  var tStep=niceStep(maxF,3);
+  for(var f=tStep;f<maxF;f+=tStep){
+    ctx.beginPath();ctx.moveTo(ml,ty(f));ctx.lineTo(ml+pw,ty(f));ctx.stroke();
+    ctx.beginPath();ctx.moveTo(ml,ty(-f));ctx.lineTo(ml+pw,ty(-f));ctx.stroke();
+  }
+  for(var gx=-2;gx<=2;gx++){
+    ctx.beginPath();ctx.moveTo(tx(gx),mt);ctx.lineTo(tx(gx),mt+ph);ctx.stroke();
+  }
+
+  ctx.strokeStyle='#c5cad2';ctx.lineWidth=1;
+  ctx.beginPath();ctx.moveTo(ml,ty(0));ctx.lineTo(ml+pw,ty(0));ctx.stroke();
+  ctx.beginPath();ctx.moveTo(ml,mt);ctx.lineTo(ml,mt+ph);ctx.stroke();
+
+  ctx.fillStyle='#8d99a8';ctx.font='600 9px "Nunito Sans",sans-serif';
+  ctx.textAlign='center';ctx.textBaseline='top';
+  for(var gx=-3;gx<=3;gx++)ctx.fillText(gx,tx(gx),mt+ph+3);
+  ctx.fillText('Position',ml+pw/2,mt+ph+18);
+
+  ctx.textAlign='right';ctx.textBaseline='middle';
+  for(var f=tStep;f<maxF;f+=tStep){
+    ctx.fillText((f<10?f.toFixed(1):f.toFixed(0)),ml-4,ty(f));
+    ctx.fillText((-f<-10?(-f).toFixed(0):(-f).toFixed(1)),ml-4,ty(-f));
+  }
+
+  ctx.save();ctx.translate(10,mt+ph/2);ctx.rotate(-Math.PI/2);
+  ctx.textAlign='center';ctx.textBaseline='middle';
+  ctx.fillText('Force (norm.)',0,0);ctx.restore();
+
+  ctx.save();ctx.beginPath();ctx.rect(ml,mt,pw,ph);ctx.clip();
+
+  ctx.strokeStyle='#2563eb';ctx.lineWidth=2;ctx.beginPath();
+  for(var i=0;i<=200;i++){
+    var x=-3+i*6/200,y=fxCalc(x,p.I);
+    if(i===0)ctx.moveTo(tx(x),ty(y));else ctx.lineTo(tx(x),ty(y));
+  }
+  ctx.stroke();
+
+  ctx.strokeStyle='#34d399';ctx.lineWidth=2;ctx.beginPath();
+  for(var i=0;i<=200;i++){
+    var x=-3+i*6/200,y=fyCalc(x,p.I);
+    if(i===0)ctx.moveTo(tx(x),ty(y));else ctx.lineTo(tx(x),ty(y));
+  }
+  ctx.stroke();
+
+  ctx.restore();
+
+  ctx.strokeStyle='#d5dae2';ctx.lineWidth=1;ctx.setLineDash([3,3]);
+  ctx.beginPath();ctx.moveTo(tx(p.pos),mt);ctx.lineTo(tx(p.pos),mt+ph);ctx.stroke();
+  ctx.setLineDash([]);
+
+  var curFx=fxCalc(p.pos,p.I),curFy=fyCalc(p.pos,p.I);
+  ctx.fillStyle='#2563eb';ctx.beginPath();ctx.arc(tx(p.pos),ty(curFx),4.5,0,Math.PI*2);ctx.fill();
+  ctx.fillStyle='#34d399';ctx.beginPath();ctx.arc(tx(p.pos),ty(curFy),4.5,0,Math.PI*2);ctx.fill();
+
+  var lx=ml+pw-4,ly=mt+8;
+  ctx.fillStyle='rgba(255,255,255,.92)';ctx.fillRect(lx-90,ly-4,96,32);
+  ctx.strokeStyle='#eef0f4';ctx.lineWidth=.5;ctx.strokeRect(lx-90,ly-4,96,32);
+  ctx.font='600 9px "Nunito Sans",sans-serif';ctx.textAlign='left';
+
+  ctx.strokeStyle='#2563eb';ctx.lineWidth=2;
+  ctx.beginPath();ctx.moveTo(lx-84,ly+5);ctx.lineTo(lx-72,ly+5);ctx.stroke();
+  ctx.fillStyle='#4a5568';ctx.fillText('Fx (horiz)',lx-68,ly+8);
+
+  ctx.strokeStyle='#34d399';ctx.lineWidth=2;
+  ctx.beginPath();ctx.moveTo(lx-84,ly+19);ctx.lineTo(lx-72,ly+19);ctx.stroke();
+  ctx.fillStyle='#4a5568';ctx.fillText('Fy (vert)',lx-68,ly+22);
+}
+
+function draw(){
+  var p=getP();
+  document.getElementById('vI').textContent=p.I.toFixed(1)+' A';
+  drawDiagram(p);
+  drawPlot(p);
+}
+
+[
+  {id:'sPos',vid:'vPos',fmt:function(v){return(+v).toFixed(2)}},
+  {id:'sV',vid:'vV',fmt:function(v){return(+v).toFixed(0)+' V'}},
+  {id:'sR',vid:'vR',fmt:function(v){return(+v).toFixed(0)+' Ω'}}
+].forEach(function(s){
+  document.getElementById(s.id).addEventListener('input',function(){
+    document.getElementById(s.vid).textContent=s.fmt(this.value);
+    draw();
+  });
+});
+
+var rt;window.addEventListener('resize',function(){clearTimeout(rt);rt=setTimeout(draw,50)});
+
+if(window.self!==window.top){
+  document.body.classList.add('embedded');
+  new ResizeObserver(function(){
+    window.parent.postMessage({type:'embed-height',height:document.getElementById('root').offsetHeight},'*');
+  }).observe(document.getElementById('root'));
+}
+
+draw();
+</script>
+</body>
+</html>
