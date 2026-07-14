@@ -95,7 +95,7 @@ details summary:hover{color:#2563eb}
 
 <hr>
 
-<p class="note">Note: There are tons of different types of actuators. This post most centrally covers the BLDC electric motor actuators you would find in modern robot arms and humanoids, but most concepts can be abstracted to other types. I won't cover some of the more obvious metrics like backlash and will instead focus on ones that are more technically nuanced</p>
+<p class="note">Note: There are tons of different types of actuators. This post most centrally covers the BLDC electric motor actuators you would find in modern robot arms and humanoids, but most concepts can be abstracted to other types. I won't cover some of the more obvious metrics like backlash and will instead focus on ones that are more technically nuanced.</p>
 
 <p>Many define an actuator by what it is most commonly made of: a motor, gearbox, sensors (position encoders and sometimes torque sensors), a controller, and supporting mechanical hardware (bearings, etc.). The broader, better definition is what an actuator does: converts stored energy into controlled mechanical power.</p>
 
@@ -151,7 +151,7 @@ details summary:hover{color:#2563eb}
 
 <div class="math-block">$$\tau = \frac{K_{T}}{R_{wire}}\cdot (V_{supply} - K_{B} \cdot \omega)$$</div>
 
-<p class="note">Note: Fundamentally, $K_{T} = K_{B}$, so this can be further simplified</p>
+<p class="note">Note: Fundamentally, $K_{T} = K_{B}$, so this can be further simplified.</p>
 
 <p>This is the heart of what describes the performance capability of any motor: its torque-speed envelope. Motor design is highly complex, but at the end of the day this is the main plot engineers are using to synthesize what a motor is capable of.</p>
 
@@ -163,7 +163,7 @@ details summary:hover{color:#2563eb}
 
 <h3>Actuator Design — Where to Start?</h3>
 
-<p>Due to the lack of quality and inexpensive commodity actuator hardware, the design approach for roboticists has been design the actuator around the robot, not the robot around the actuator. Robot design is influenced by a wide variety of stakeholders and must satisfy functional and aesthetic requirements. For the sake of actuators, any robot design can be described by three questions:</p>
+<p>Due to the lack of quality and inexpensive commodity actuator hardware, the design approach for roboticists has been to design the actuator around the robot, not the robot around the actuator. Robot design is influenced by a wide variety of stakeholders and must satisfy functional and aesthetic requirements. For the sake of actuators, any robot design can be described by three questions:</p>
 
 <ol>
   <li>How many joints are there and how are they spatially arranged?</li>
